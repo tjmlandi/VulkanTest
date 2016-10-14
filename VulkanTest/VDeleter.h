@@ -7,6 +7,31 @@
 #include <stdexcept>
 #include <functional>
 
+
+///<summary>Loads and returns pointer to debug report callback creation from extension</summary>
+VkResult CreateDebugReportCallbackEXT(VkInstance instance, const VkDebugReportCallbackCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugReportCallbackEXT* pCallback)
+{
+	auto func = (PFN_vkCreateDebugReportCallbackEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugReportCallbackEXT");
+	if (func != nullptr)
+	{
+		return func(instance, pCreateInfo, pAllocator, pCallback);
+	}
+	else
+	{
+		return VK_ERROR_EXTENSION_NOT_PRESENT;
+	}
+}
+
+///<summary>Loads and returns pointer to debug report callback deletion from extension</summary>
+void DestroyDebugReportCallbackEXT(VkInstance instance, VkDebugReportCallbackEXT callback, const VkAllocationCallbacks* pAllocator)
+{
+	auto func = (PFN_vkDestroyDebugReportCallbackEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugReportCallbackEXT");
+	if (func != nullptr)
+	{
+		func(instance, callback, pAllocator);
+	}
+}
+
 /// VDeleter handles the deletion of a Vulkan Object
 template <typename T>
 class VDeleter {
