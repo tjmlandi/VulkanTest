@@ -1,7 +1,8 @@
 ﻿  main.cpp
-c:\users\tjmla\documents\visual studio 2015\projects\vulkantest\vulkantest\hellotriangleapplication.h(410): warning C4267: '=': conversion from 'size_t' to 'uint32_t', possible loss of data
-c:\users\tjmla\documents\visual studio 2015\projects\vulkantest\vulkantest\hellotriangleapplication.h(416): warning C4267: '=': conversion from 'size_t' to 'uint32_t', possible loss of data
-c:\users\tjmla\documents\visual studio 2015\projects\vulkantest\vulkantest\hellotriangleapplication.h(564): warning C4838: conversion from 'const int' to 'uint32_t' requires a narrowing conversion
-c:\users\tjmla\documents\visual studio 2015\projects\vulkantest\vulkantest\hellotriangleapplication.h(609): warning C4267: '=': conversion from 'size_t' to 'uint32_t', possible loss of data
-c:\users\tjmla\documents\visual studio 2015\projects\vulkantest\vulkantest\hellotriangleapplication.h(615): warning C4267: '=': conversion from 'size_t' to 'uint32_t', possible loss of data
-  VulkanTest.vcxproj -> C:\Users\tjmla\Documents\Visual Studio 2015\Projects\VulkanTest\x64\Debug\VulkanTest.exe
+c:\users\tjmla\documents\visual studio 2015\projects\vulkantest\vulkantest\hellotriangleapplication.h(415): warning C4267: '=': conversion from 'size_t' to 'uint32_t', possible loss of data
+c:\users\tjmla\documents\visual studio 2015\projects\vulkantest\vulkantest\hellotriangleapplication.h(421): warning C4267: '=': conversion from 'size_t' to 'uint32_t', possible loss of data
+c:\users\tjmla\documents\visual studio 2015\projects\vulkantest\vulkantest\hellotriangleapplication.h(578): warning C4838: conversion from 'const int' to 'uint32_t' requires a narrowing conversion
+c:\users\tjmla\documents\visual studio 2015\projects\vulkantest\vulkantest\hellotriangleapplication.h(668): warning C4267: '=': conversion from 'size_t' to 'uint32_t', possible loss of data
+c:\users\tjmla\documents\visual studio 2015\projects\vulkantest\vulkantest\hellotriangleapplication.h(674): warning C4267: '=': conversion from 'size_t' to 'uint32_t', possible loss of data
+LINK : warning LNK4098: defaultlib 'MSVCRT' conflicts with use of other libs; use /NODEFAULTLIB:library
+  VulkanTest.vcxproj -> C:\Users\tjmla\documents\visual studio 2015\Projects\VulkanTest\x64\Debug\VulkanTest.exe
