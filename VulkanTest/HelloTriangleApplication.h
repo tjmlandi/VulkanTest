@@ -44,6 +44,7 @@ public:
 		initWindow();
 		initVulkan();
 		mainLoop();
+		cleanup();
 	}
 
 private:
@@ -69,7 +70,8 @@ private:
 	std::vector<VDeleter<VkFramebuffer>> swapChainFramebuffers;													//Container of all the swap chain image framebuffers
 	VDeleter<VkCommandPool> commandPool{ device, vkDestroyCommandPool };										//Vulkan command pool, manages the command buffers and memory for them
 	std::vector<VkCommandBuffer> commandBuffers;																//Container for command buffers. Will be automatically freed when pool is destroyed
-
+	VDeleter<VkSemaphore> imageAvailableSemaphore{ device, vkDestroySemaphore };								//Semaphore to signal image is ready for rendering
+	VDeleter<VkSemaphore> renderFinishedSemaphore{ device, vkDestroySemaphore };								//Semaphore to signal the rendering finished, and presentation can happen
 
 	const std::vector<const char*> validationLayers =															//Required Validation Layers
 	{
@@ -385,9 +387,20 @@ private:
 		glfwInit();
 
 		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-		glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
 		window = glfwCreateWindow(WIDTH, HEIGHT, "Vulkan", nullptr, nullptr);
+
+		glfwSetWindowUserPointer(window, this);
+		glfwSetWindowSizeCallback(window, HelloTriangleApplication::onWindowResized);
+	}
+
+	static void onWindowResized(GLFWwindow* window, int width, int height)
+	{
+		if (width == 0 || height == 0) return;
+
+		HelloTriangleApplication* app = reinterpret_cast<HelloTriangleApplication*>(glfwGetWindowUserPointer(window));
+		//Recreate the swap chain if the window resizes
+		app->recreateSwapChain();
 	}
 
 	///<summary>Creates and stores a Logical Device handle for our selected physical device</summary>
@@ -516,12 +529,19 @@ private:
 
 		//Assumption that there will only be one swap chain, for now <CHANGE>
 		createInfo.oldSwapchain = VK_NULL_HANDLE;
+		
+		//Set the current swap chain to be the old swap chain
+		VkSwapchainKHR oldSwapChain = swapChain;
+		createInfo.oldSwapchain = oldSwapChain;
 
-		//Create and store the swap chain handle
-		if (vkCreateSwapchainKHR(device, &createInfo, nullptr, swapChain.replace()) != VK_SUCCESS)
+		//Create the new swap chain
+		VkSwapchainKHR newSwapChain;
+		if (vkCreateSwapchainKHR(device, &createInfo, nullptr, &newSwapChain) != VK_SUCCESS)
 		{
 			throw std::runtime_error("failed to create swap chain!");
 		}
+
+		swapChain = newSwapChain;
 
 		//Gets and stores the swap chain image handles
 		vkGetSwapchainImagesKHR(device, swapChain, &imageCount, nullptr);
@@ -582,7 +602,10 @@ private:
 		//Otherwise, use the resolution of the window, or as close as possible within the capabilities
 		else
 		{
-			VkExtent2D actualExtent = { WIDTH, HEIGHT };
+			int width, height;
+			glfwGetWindowSize(window, &width, &height);
+
+			VkExtent2D actualExtent = { width, height };
 
 			actualExtent.width = std::max(capabilities.minImageExtent.width, std::min(capabilities.maxImageExtent.width, actualExtent.width));
 			actualExtent.height = std::max(capabilities.minImageExtent.height, std::min(capabilities.maxImageExtent.height, actualExtent.height));
@@ -693,6 +716,15 @@ private:
 		subpass.colorAttachmentCount = 1;										//This index referenced in "out" directive of fragment shader
 		subpass.pColorAttachments = &colorAttachmentRef;						//Reference to color attachment
 
+		//Info for the subpass that concerns the transition into the render pass
+		VkSubpassDependency dependency = {};
+		dependency.srcSubpass = VK_SUBPASS_EXTERNAL;																	//Refers to the implicit subpass at the start of the render pass
+		dependency.dstSubpass = 0;																						//The index of the dependent subpass, the first and only subpass
+		dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;										//Specify the stage this is waiting on
+		dependency.srcAccessMask = 0;
+		dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;										//Specify that the reading/writing of the color attachment are waiting on this
+		dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
 		//The render pass itself
 		VkRenderPassCreateInfo renderPassInfo = {};
 		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
@@ -700,6 +732,8 @@ private:
 		renderPassInfo.pAttachments = &colorAttachment;
 		renderPassInfo.subpassCount = 1;
 		renderPassInfo.pSubpasses = &subpass;
+		renderPassInfo.dependencyCount = 1;
+		renderPassInfo.pDependencies = &dependency;
 
 		//Create the render pass
 		if (vkCreateRenderPass(device, &renderPassInfo, nullptr, renderPass.replace()) != VK_SUCCESS) {
@@ -814,14 +848,14 @@ private:
 		//Struct defining options for the array of all blend option structs
 		VkPipelineColorBlendStateCreateInfo colorBlending = {};
 		colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-		colorBlending.logicOpEnable = VK_TRUE;
-		colorBlending.logicOp = VK_LOGIC_OP_AND; // Optional
+		colorBlending.logicOpEnable = VK_FALSE;
+		//colorBlending.logicOp = VK_LOGIC_OP_AND; // Optional
 		colorBlending.attachmentCount = 1;
 		colorBlending.pAttachments = &colorBlendAttachment;
-		colorBlending.blendConstants[0] = 0.0f; // Optional
-		colorBlending.blendConstants[1] = 0.0f; // Optional
-		colorBlending.blendConstants[2] = 0.0f; // Optional
-		colorBlending.blendConstants[3] = 0.0f; // Optional
+		//colorBlending.blendConstants[0] = 0.0f; // Optional
+		//colorBlending.blendConstants[1] = 0.0f; // Optional
+		//colorBlending.blendConstants[2] = 0.0f; // Optional
+		//colorBlending.blendConstants[3] = 0.0f; // Optional
 
 		//Dynamic state structs, for options that can be changed and set at draw time
 		VkDynamicState dynamicStates[] = {
@@ -874,6 +908,14 @@ private:
 	///<summary>Iterates through the swapChainImageViews container and populates the swapChainFramebuffers container with the necessary information</summary>
 	void createFrameBuffers()
 	{
+		//Free any old command buffers that may exist
+		if (commandBuffers.size() > 0)
+		{
+			vkFreeCommandBuffers(device, commandPool, commandBuffers.size(), commandBuffers.data());
+		}
+
+		commandBuffers.resize(swapChainFramebuffers.size());
+
 		//Resize the container so it will fit all of our framebuffers
 		swapChainFramebuffers.resize(swapChainImageViews.size(), VDeleter<VkFramebuffer>{device, vkDestroyFramebuffer});
 
@@ -918,7 +960,7 @@ private:
 		}
 	}
 
-	///<summary></summary>
+	///<summary>Loop through the command buffers and record the render pass to each one</summary>
 	void createCommandBuffers()
 	{
 		//Resize the buffers container to match the amount of framebuffers there are
@@ -979,21 +1021,19 @@ private:
 		}
 	}
 
-	///<summary>Initializes Vulkan</summary>
-	void initVulkan()
+	///<summary>Create the semaphores used to signal images being ready, and render completion</summary>
+	void createSemaphores()
 	{
-		createInstance();
-		setupDebugCallback();
-		createSurface();
-		pickPhysicalDevice();
-		createLogicalDevice();
-		createSwapChain();
-		createImageViews();
-		createRenderPass();
-		createGraphicsPipeline();
-		createFrameBuffers();
-		createCommandPool();
-		createCommandBuffers();
+		//Info to create a semaphore. Current API does not require any fields
+		VkSemaphoreCreateInfo semaphoreInfo = {};
+		semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+		//Create the semaphores
+		if (vkCreateSemaphore(device, &semaphoreInfo, nullptr, imageAvailableSemaphore.replace()) != VK_SUCCESS ||
+			vkCreateSemaphore(device, &semaphoreInfo, nullptr, renderFinishedSemaphore.replace()) != VK_SUCCESS)
+		{
+			throw std::runtime_error("failed to create semaphores!");
+		}
 	}
 
 	///<summary>Creates Vulkan Instance</summary>
@@ -1042,12 +1082,163 @@ private:
 		}
 	}
 
+	///<summary>Initializes Vulkan</summary>
+	void initVulkan()
+	{
+		createInstance();
+		setupDebugCallback();
+		createSurface();
+		pickPhysicalDevice();
+		createLogicalDevice();
+		createSwapChain();
+		createImageViews();
+		createRenderPass();
+		createGraphicsPipeline();
+		createFrameBuffers();
+		createCommandPool();
+		createCommandBuffers();
+		createSemaphores();
+	}
+
+	///<summary>Cleanup resources used for the swap chain</summary>
+	void cleanupSwapChain()
+	{
+		for (size_t i = 0; i < swapChainFramebuffers.size(); i++)
+		{
+			vkDestroyFramebuffer(device, swapChainFramebuffers[i], nullptr);
+		}
+
+		vkFreeCommandBuffers(device, commandPool, static_cast<uint32_t>(commandBuffers.size()), commandBuffers.data());
+
+		vkDestroyPipeline(device, graphicsPipeline, nullptr);
+		vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
+		vkDestroyRenderPass(device, renderPass, nullptr);
+
+		for (size_t i = 0; i < swapChainImageViews.size(); i++)
+		{
+			vkDestroyImageView(device, swapChainImageViews[i], nullptr);
+		}
+
+		vkDestroySwapchainKHR(device, swapChain, nullptr);
+	}
+
+	///<summary>Clean up resources used</summary>
+	void cleanup()
+	{
+		cleanupSwapChain();
+
+		vkDestroySemaphore(device, renderFinishedSemaphore, nullptr);
+		vkDestroySemaphore(device, imageAvailableSemaphore, nullptr);
+
+		vkDestroyCommandPool(device, commandPool, nullptr);
+
+		vkDestroyDevice(device, nullptr);
+		DestroyDebugReportCallbackEXT(instance, callback, nullptr);
+		vkDestroySurfaceKHR(instance, surface, nullptr);
+		vkDestroyInstance(instance, nullptr);
+
+		glfwDestroyWindow(window);
+
+		glfwTerminate();
+	}
+	
+	///<summary>Recreates the swap chain and the objects dependent on the swap chain</summary>
+	void recreateSwapChain()
+	{
+		vkDeviceWaitIdle(device);
+
+		cleanupSwapChain();
+
+		createSwapChain();
+		createImageViews();
+		createRenderPass();
+		createGraphicsPipeline();
+		createFrameBuffers();
+		createCommandBuffers();
+	}
+
 	///<summary>Main Application Loop</summary>
 	void mainLoop() 
 	{
 		while (!glfwWindowShouldClose(window)) 
 		{
 			glfwPollEvents();
+			drawFrame();
 		}
+
+		vkDeviceWaitIdle(device);
+
+		glfwDestroyWindow(window);
+	}
+
+	///<summary>Grab an image from the swap chain, execute the command buffer with that image as the attachment to the framebuffer,
+	///and return the image to the swap chain for presentation</summary>
+	void drawFrame()
+	{
+		uint32_t imageIndex;
+
+		//Get swap chain image, with our specified device, swap chain, no timeout for an image to become available, 
+		//the semaphore object that will be signaled upon completion, and the variable into which the index of the image in the swap chain will be stored
+		VkResult result = vkAcquireNextImageKHR(device, swapChain, std::numeric_limits<uint64_t>::max(), imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
+
+		//Recreate the swap chain if it is out of date, continue upon success, otherwise throw error
+		if (result == VK_ERROR_OUT_OF_DATE_KHR)
+		{
+			recreateSwapChain();
+			return;
+		}
+		else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
+		{
+			throw std::runtime_error("failed to acquire swap chain image!");
+		}
+
+		//Queue submission and synchronization configuration info
+		VkSubmitInfo submitInfo = {};
+		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+		VkSemaphore waitSemaphores[] = { imageAvailableSemaphore };
+		VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+		submitInfo.waitSemaphoreCount = 1;															//How many semaphores to wait on
+		submitInfo.pWaitSemaphores = waitSemaphores;												//Which semaphores will be waited on before execution (when the image is available from the swap chain
+		submitInfo.pWaitDstStageMask = waitStages;													//Specify we will be waiting on the part of the pipeline that writes to the color attachment
+		submitInfo.commandBufferCount = 1;															
+		submitInfo.pCommandBuffers = &commandBuffers[imageIndex];									//Specify the command buffer that will be submitted binds the swap chain image that has been acquired
+		VkSemaphore signalSemaphores[] = { renderFinishedSemaphore };								//Specify that the semaphore that will be signaled after execution is the finished render semaphore
+		submitInfo.signalSemaphoreCount = 1;														
+		submitInfo.pSignalSemaphores = signalSemaphores;
+
+		//Submit the command buffer to the graphics queue
+		if (vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE) != VK_SUCCESS)
+		{
+			throw std::runtime_error("failed to submit draw command buffer!");
+		}
+		
+					
+		//Configure the presentation
+		VkPresentInfoKHR presentInfo = {};
+		presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;									
+		presentInfo.waitSemaphoreCount = 1;													//Specify the semaphores that presentation is waiting on
+		presentInfo.pWaitSemaphores = signalSemaphores;
+
+
+		VkSwapchainKHR swapChains[] = { swapChain };
+		presentInfo.swapchainCount = 1;
+		presentInfo.pSwapchains = swapChains;												//Specify the swap chain that is being presented to
+		presentInfo.pImageIndices = &imageIndex;											//Specify the index of the image for the swap chain
+		presentInfo.pResults = nullptr; // Optional, allows specification of vkresult values to check after presentation
+
+		//Submit the request to present the image to the swap chain
+		result = vkQueuePresentKHR(presentQueue, &presentInfo);
+
+		//Recreate swap chain upon out of date/suboptimal swap chain
+		if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
+		{
+			recreateSwapChain();
+		}
+		else if (result != VK_SUCCESS)
+		{
+			throw std::runtime_error("failed to present swap chain image!");
+		}
+
+		vkQueueWaitIdle(presentQueue);
 	}
 };

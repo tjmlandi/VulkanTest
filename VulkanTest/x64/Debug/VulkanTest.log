@@ -1,9 +1,10 @@
 ﻿  main.cpp
-d:\vulkantest\vulkantest\hellotriangleapplication.h(419): warning C4267: '=': conversion from 'size_t' to 'uint32_t', possible loss of data
-d:\vulkantest\vulkantest\hellotriangleapplication.h(425): warning C4267: '=': conversion from 'size_t' to 'uint32_t', possible loss of data
-d:\vulkantest\vulkantest\hellotriangleapplication.h(582): warning C4838: conversion from 'const int' to 'uint32_t' requires a narrowing conversion
-d:\vulkantest\vulkantest\hellotriangleapplication.h(910): warning C4267: '=': conversion from 'size_t' to 'uint32_t', possible loss of data
-d:\vulkantest\vulkantest\hellotriangleapplication.h(916): warning C4267: '=': conversion from 'size_t' to 'uint32_t', possible loss of data
+d:\vulkantest\vulkantest\hellotriangleapplication.h(435): warning C4267: '=': conversion from 'size_t' to 'uint32_t', possible loss of data
+d:\vulkantest\vulkantest\hellotriangleapplication.h(441): warning C4267: '=': conversion from 'size_t' to 'uint32_t', possible loss of data
+d:\vulkantest\vulkantest\hellotriangleapplication.h(605): warning C4838: conversion from 'int' to 'uint32_t' requires a narrowing conversion
+d:\vulkantest\vulkantest\hellotriangleapplication.h(911): warning C4267: 'argument': conversion from 'size_t' to 'uint32_t', possible loss of data
+d:\vulkantest\vulkantest\hellotriangleapplication.h(1061): warning C4267: '=': conversion from 'size_t' to 'uint32_t', possible loss of data
+d:\vulkantest\vulkantest\hellotriangleapplication.h(1067): warning C4267: '=': conversion from 'size_t' to 'uint32_t', possible loss of data
 LINK : warning LNK4098: defaultlib 'MSVCRT' conflicts with use of other libs; use /NODEFAULTLIB:library
   VulkanTest.vcxproj -> D:\VulkanTest\x64\Debug\VulkanTest.exe
   VulkanTest.vcxproj -> D:\VulkanTest\x64\Debug\VulkanTest.pdb (Full PDB)
